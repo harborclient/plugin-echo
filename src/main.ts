@@ -1,9 +1,6 @@
-import type {
-  EchoServerIncomingRequest,
-  MainPluginContext,
-} from "@harborclient/sdk/main";
+import type { EchoServerIncomingRequest, MainPluginContext } from '@harborclient/sdk/main';
 
-let userScript = "";
+let userScript = '';
 let running = false;
 let listenPort: number | undefined;
 
@@ -13,8 +10,8 @@ let listenPort: number | undefined;
  * @param source - User-authored request script.
  */
 function hasExecutableScript(source: string): boolean {
-  const withoutBlockComments = source.replace(/\/\*[\s\S]*?\*\//g, "");
-  const withoutLineComments = withoutBlockComments.replace(/^\s*\/\/.*$/gm, "");
+  const withoutBlockComments = source.replace(/\/\*[\s\S]*?\*\//g, '');
+  const withoutLineComments = withoutBlockComments.replace(/^\s*\/\/.*$/gm, '');
   return withoutLineComments.trim().length > 0;
 }
 
@@ -30,11 +27,11 @@ function toScriptRequestInit(request: EchoServerIncomingRequest) {
     headers: Object.entries(request.headers).map(([key, value]) => ({
       key,
       value: String(value),
-      enabled: true,
+      enabled: true
     })),
     params: request.params,
     body: request.body,
-    bodyType: request.bodyType,
+    bodyType: request.bodyType
   };
 }
 
@@ -52,9 +49,9 @@ export function activate(hc: MainPluginContext): void {
       }
 
       const context = hc.scripts.createContext({
-        phase: "pre",
+        phase: 'pre',
         request: toScriptRequestInit(request),
-        variables: {},
+        variables: {}
       });
 
       const result = context.run(trimmed);
@@ -72,12 +69,12 @@ export function activate(hc: MainPluginContext): void {
   );
 
   hc.subscriptions.push(
-    hc.ipc.handle("start", async (...args: unknown[]) => {
+    hc.ipc.handle('start', async (...args: unknown[]) => {
       const payload = (args[0] ?? {}) as { port?: number; script?: string };
-      userScript = String(payload.script ?? "");
+      userScript = String(payload.script ?? '');
       const port = Number(payload.port ?? 0);
       const result = await hc.server.start({
-        port: Number.isFinite(port) ? port : 0,
+        port: Number.isFinite(port) ? port : 0
       });
       running = true;
       listenPort = result.port;
@@ -86,7 +83,7 @@ export function activate(hc: MainPluginContext): void {
   );
 
   hc.subscriptions.push(
-    hc.ipc.handle("stop", async () => {
+    hc.ipc.handle('stop', async () => {
       await hc.server.stop();
       running = false;
       listenPort = undefined;
@@ -95,9 +92,20 @@ export function activate(hc: MainPluginContext): void {
   );
 
   hc.subscriptions.push(
-    hc.ipc.handle("status", async () => ({
+    hc.ipc.handle('refreshScript', async (...args: unknown[]) => {
+      if (!running) {
+        throw new Error('Echo server is not running');
+      }
+      const payload = (args[0] ?? {}) as { script?: string };
+      userScript = String(payload.script ?? '');
+      return { running: true, port: listenPort };
+    })
+  );
+
+  hc.subscriptions.push(
+    hc.ipc.handle('status', async () => ({
       running,
-      port: listenPort,
+      port: listenPort
     }))
   );
 }

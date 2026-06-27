@@ -1,12 +1,8 @@
-import { useEffect, useState } from "@harborclient/sdk/react";
-import {
-  getEchoStatus,
-  subscribeEchoState,
-  type EchoServerUiStatus,
-} from "../state";
+import { useEffect, useState } from '@harborclient/sdk/react';
+import { getEchoStatus, subscribeEchoState, type EchoServerUiStatus } from '../state';
 
 /**
- * Green dot shown on the Echo server footer toggle when the server is listening.
+ * Status dot on the Echo server footer toggle: green when listening, grey when stopped.
  */
 export function EchoFooterIndicator() {
   const [status, setStatus] = useState<EchoServerUiStatus>(getEchoStatus());
@@ -20,15 +16,13 @@ export function EchoFooterIndicator() {
     });
   }, []);
 
-  if (!status.running) {
-    return null;
-  }
-
   return (
     <span className="inline-flex items-center" role="status">
-      <span className="sr-only">Echo server active</span>
+      <span className="sr-only">
+        {status.running ? 'Echo server active' : 'Echo server stopped'}
+      </span>
       <span
-        className="inline-block h-2 w-2 rounded-full bg-success"
+        className={`inline-block h-2 w-2 rounded-full ${status.running ? 'bg-success' : 'bg-muted'}`}
         aria-hidden="true"
       />
     </span>

@@ -35,5 +35,5 @@ Example:
 ```javascript
 hc.request.method;
 // return custom body:
-({ message: "hello", method: hc.request.method });
+({ message: 'hello', method: hc.request.method });
 ```

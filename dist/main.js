@@ -66,6 +66,16 @@ function activate(hc) {
     })
   );
   hc.subscriptions.push(
+    hc.ipc.handle("refreshScript", async (...args) => {
+      if (!running) {
+        throw new Error("Echo server is not running");
+      }
+      const payload = args[0] ?? {};
+      userScript = String(payload.script ?? "");
+      return { running: true, port: listenPort };
+    })
+  );
+  hc.subscriptions.push(
     hc.ipc.handle("status", async () => ({
       running,
       port: listenPort

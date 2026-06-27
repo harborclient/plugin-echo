@@ -1,7 +1,7 @@
-import { installReact } from "@harborclient/sdk";
-import type { PluginContext } from "@harborclient/sdk";
-import { EchoFooterIndicator } from "./components/EchoFooterIndicator";
-import { EchoPanel } from "./components/EchoPanel";
+import { installReact } from '@harborclient/sdk';
+import type { PluginContext } from '@harborclient/sdk';
+import { EchoFooterIndicator } from './components/EchoFooterIndicator';
+import { EchoPanel } from './components/EchoPanel';
 
 /**
  * Activates the renderer half and registers echo server UI contributions.
@@ -20,10 +20,10 @@ export function activate(hc: PluginContext): void {
 
   hc.subscriptions.push(
     hc.ui.registerFooterPanel({
-      id: "echo.panel",
-      title: "Echo server",
+      id: 'echo.panel',
+      title: 'Echo server',
       Component: EchoPanelHost,
-      Indicator: EchoFooterIndicator,
+      Indicator: EchoFooterIndicator
     })
   );
 }
