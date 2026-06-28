@@ -2,6 +2,9 @@
 
 HarborClient plugin that runs a local httpbin-style HTTP echo server inside the app.
 
+![Screenshot](screenshot.png)
+
+
 ## Features
 
 - Footer panel **Echo server** with port configuration, start/stop controls, and a request script editor
