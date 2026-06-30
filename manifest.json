@@ -1,7 +1,7 @@
 {
   "id": "com.harborclient.echo",
   "name": "Echo Server",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "HarborClient",
   "description": "README.md",
   "engines": {
@@ -9,7 +9,7 @@
   },
   "renderer": "dist/renderer.js",
   "main": "dist/main.js",
-  "permissions": ["ui", "ipc", "server"],
+  "permissions": ["ui", "ipc", "server", "storage"],
   "contributes": {
     "footerPanels": [{ "id": "echo.panel", "title": "Echo server" }]
   }
