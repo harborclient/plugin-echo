@@ -1,30 +1,20 @@
-import { useEffect, useState } from '@harborclient/sdk/react';
-import {
-  getEchoStatus,
-  startEchoStateSync,
-  subscribeEchoState,
-  syncEchoStateFromStorage,
-  type EchoServerUiStatus
-} from '../state';
+import { useEffect } from '@harborclient/sdk/react';
+import { syncOnWindowFocus } from '@harborclient/sdk/store';
+import { getEchoStatusStore } from '../state';
 
 /**
  * Status dot on the Echo server footer toggle: green when listening, grey when stopped.
  */
 export function EchoFooterIndicator() {
-  const [status, setStatus] = useState<EchoServerUiStatus>(getEchoStatus());
+  const status = getEchoStatusStore().useValue();
 
   /**
-   * Syncs from plugin storage and main status, then keeps polling storage updates.
+   * Keeps status in sync with other plugin webviews via focus, visibility, and polling.
    */
   useEffect(() => {
-    void syncEchoStateFromStorage();
-    const unsubscribeLocal = subscribeEchoState(() => {
-      setStatus(getEchoStatus());
-    });
-    const stopSync = startEchoStateSync();
+    const syncDisposable = syncOnWindowFocus(getEchoStatusStore(), { intervalMs: 500 });
     return () => {
-      unsubscribeLocal();
-      stopSync();
+      syncDisposable.dispose();
     };
   }, []);
 

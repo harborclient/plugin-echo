@@ -1,4 +1,9 @@
 import type { PluginContext } from '@harborclient/sdk';
+import {
+  createExternalStore,
+  createStorageStore,
+  type StorageStore
+} from '@harborclient/sdk/store';
 
 /** Storage key for echo server status shared across plugin webviews. */
 export const ECHO_STATUS_STORAGE_KEY = 'echo-status';
@@ -13,36 +18,47 @@ export interface EchoServerUiStatus {
 
 type Listener = () => void;
 
-const SYNC_INTERVAL_MS = 500;
-
 let pluginContext: PluginContext | null = null;
-let status: EchoServerUiStatus = { running: false };
-let errorMessage: string | null = null;
-let lastStatusJson = JSON.stringify(status);
-const listeners = new Set<Listener>();
+let statusStore: StorageStore<EchoServerUiStatus> | null = null;
+const errorStore = createExternalStore<string | null>(null);
 
 /**
- * Notifies all in-webview subscribers after state changes.
+ * Parses a raw storage value into echo server UI status.
+ *
+ * @param raw - Raw value from plugin storage.
  */
-function notifyListeners(): void {
-  for (const listener of listeners) {
-    listener();
+function parseEchoStatus(raw: unknown): EchoServerUiStatus {
+  if (!raw || typeof raw !== 'object') {
+    return { running: false };
   }
+  const candidate = raw as EchoServerUiStatus;
+  if (typeof candidate.running !== 'boolean') {
+    return { running: false };
+  }
+  return {
+    running: candidate.running,
+    ...(typeof candidate.port === 'number' ? { port: candidate.port } : {})
+  };
 }
 
 /**
- * Applies a status snapshot when it differs from the cached value.
- *
- * @param next - New running state and optional listen port.
+ * Returns the initialized status store or throws when echo state is unavailable.
  */
-function applyStatus(next: EchoServerUiStatus): void {
-  const nextJson = JSON.stringify(next);
-  if (nextJson === lastStatusJson) {
-    return;
+function requireStatusStore(): StorageStore<EchoServerUiStatus> {
+  if (!statusStore) {
+    throw new Error('Echo state is not initialized.');
   }
-  lastStatusJson = nextJson;
-  status = next;
-  notifyListeners();
+  return statusStore;
+}
+
+/**
+ * Returns the initialized plugin context or throws when echo state is unavailable.
+ */
+function requirePluginContext(): PluginContext {
+  if (!pluginContext) {
+    throw new Error('Echo state is not initialized.');
+  }
+  return pluginContext;
 }
 
 /**
@@ -52,34 +68,67 @@ function applyStatus(next: EchoServerUiStatus): void {
  */
 export function initEchoState(hc: PluginContext): void {
   pluginContext = hc;
-  void syncEchoStateFromStorage();
+  statusStore = createStorageStore({
+    storage: hc.storage,
+    key: ECHO_STATUS_STORAGE_KEY,
+    parse: parseEchoStatus,
+    keepCurrentWhenMissing: true
+  });
+  void statusStore.reloadFromStorage();
   void refreshEchoStatusFromMain();
 }
 
 /**
+ * Returns the storage-backed status store after {@link initEchoState}.
+ */
+export function getEchoStatusStore(): StorageStore<EchoServerUiStatus> {
+  return requireStatusStore();
+}
+
+/**
+ * Clears module-level echo state on plugin deactivation.
+ *
+ * Push onto {@link PluginContext.subscriptions} from {@link activate} so the host
+ * tears down singletons when the plugin reloads or disables.
+ */
+export function disposeEchoState(): void {
+  pluginContext = null;
+  statusStore = null;
+  errorStore.setState(null);
+}
+
+/**
  * Returns the latest echo server status cached in this webview.
+ *
+ * Tolerates pre-init reads during the first render; use {@link getEchoStatusStore}
+ * when callers must fail after deactivation.
  */
 export function getEchoStatus(): EchoServerUiStatus {
-  return status;
+  return statusStore?.getSnapshot() ?? { running: false };
 }
 
 /**
  * Returns the latest inline error message for the footer panel.
  */
 export function getEchoError(): string | null {
-  return errorMessage;
+  return errorStore.getSnapshot();
 }
 
 /**
  * Subscribes to echo server UI state changes in the current webview.
  *
+ * Tolerates pre-init subscription during the first render; use
+ * {@link getEchoStatusStore} when callers must fail after deactivation.
+ *
  * @param listener - Called when status or error state changes.
  * @returns Unsubscribe function.
  */
 export function subscribeEchoState(listener: Listener): () => void {
-  listeners.add(listener);
+  const unsubscribeStatus = statusStore?.subscribe(listener) ?? (() => undefined);
+  const unsubscribeError = errorStore.subscribe(listener);
   return () => {
-    listeners.delete(listener);
+    unsubscribeStatus();
+    unsubscribeError();
   };
 }
 
@@ -87,42 +136,21 @@ export function subscribeEchoState(listener: Listener): () => void {
  * Reads persisted status from plugin storage and updates local subscribers when changed.
  */
 export async function syncEchoStateFromStorage(): Promise<void> {
-  if (!pluginContext) {
-    return;
-  }
-  const stored = await pluginContext.storage.get<EchoServerUiStatus>(ECHO_STATUS_STORAGE_KEY);
-  if (stored) {
-    applyStatus(stored);
-  }
+  await statusStore?.reloadFromStorage();
 }
 
 /**
  * Refreshes echo server status from the main plugin entry and persists it.
  */
 export async function refreshEchoStatusFromMain(): Promise<void> {
-  if (!pluginContext) {
-    return;
-  }
+  const hc = requirePluginContext();
+  requireStatusStore();
   try {
-    const next = await pluginContext.ipc.invoke<EchoServerUiStatus>('status');
-    setEchoStatus(next);
+    const next = await hc.ipc.invoke<EchoServerUiStatus>('status');
+    await setEchoStatus(next);
   } catch {
     // Main entry may be inactive briefly during plugin reload.
   }
-}
-
-/**
- * Polls plugin storage so indicator and panel webviews stay in sync.
- *
- * @returns Cleanup function that stops polling.
- */
-export function startEchoStateSync(): () => void {
-  const interval = setInterval(() => {
-    void syncEchoStateFromStorage();
-  }, SYNC_INTERVAL_MS);
-  return () => {
-    clearInterval(interval);
-  };
 }
 
 /**
@@ -130,9 +158,8 @@ export function startEchoStateSync(): () => void {
  *
  * @param next - New running state and optional listen port.
  */
-export function setEchoStatus(next: EchoServerUiStatus): void {
-  applyStatus(next);
-  void pluginContext?.storage.set(ECHO_STATUS_STORAGE_KEY, next);
+export async function setEchoStatus(next: EchoServerUiStatus): Promise<void> {
+  await requireStatusStore().set(next);
 }
 
 /**
@@ -141,6 +168,5 @@ export function setEchoStatus(next: EchoServerUiStatus): void {
  * @param message - Error text, or null to clear.
  */
 export function setEchoError(message: string | null): void {
-  errorMessage = message;
-  notifyListeners();
+  errorStore.setState(message);
 }

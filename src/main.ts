@@ -1,4 +1,7 @@
 import type { EchoServerIncomingRequest, MainPluginContext } from '@harborclient/sdk/main';
+import { createLogger } from '@harborclient/sdk/runtime-utils';
+
+const logger = createLogger('echo');
 
 let userScript = '';
 let running = false;
@@ -56,7 +59,7 @@ export function activate(hc: MainPluginContext): void {
 
       const result = context.run(trimmed);
       if (result.error) {
-        console.error(`[echo] script error: ${result.error}`);
+        logger.error('script error:', result.error);
         return request.echo;
       }
 

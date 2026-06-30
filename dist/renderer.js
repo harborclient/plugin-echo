@@ -1,4 +1,4 @@
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/runtime/reactHost.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/runtime/reactHost.js
 var HOST_REACT_GLOBAL_KEY = "__HARBORCLIENT_HOST_REACT__";
 var hostReact = null;
 function readGlobalHostReact() {
@@ -29,12 +29,12 @@ function requireHostReact() {
   return hostReact;
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/runtime/index.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/runtime/index.js
 function installReact(react) {
   setHostReact(react);
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/runtime/react.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/runtime/react.js
 function hook(name2) {
   const react = requireHostReact();
   const fn = react[name2];
@@ -61,6 +61,22 @@ function useRef(initialValue) {
 function useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   return hook("useSyncExternalStore")(subscribe, getSnapshot, getServerSnapshot);
 }
+function forwardRef(render) {
+  let forwarded = null;
+  function LazyForwardRef(props, ref) {
+    const react = requireHostReact();
+    if (forwarded === null) {
+      forwarded = react.forwardRef(render);
+    }
+    return react.createElement(forwarded, { ...props, ref });
+  }
+  const displayName = render.displayName ?? render.name ?? "Component";
+  LazyForwardRef.displayName = `ForwardRef(${displayName})`;
+  return LazyForwardRef;
+}
+function useImperativeHandle(ref, create, deps) {
+  return hook("useImperativeHandle")(ref, create, deps);
+}
 function cloneElement(element, props, ...children) {
   return hook("cloneElement")(element, props, ...children);
 }
@@ -76,86 +92,202 @@ function useContext(context) {
 function useId() {
   return hook("useId")();
 }
+function useLayoutEffect(effect, deps) {
+  return hook("useLayoutEffect")(effect, deps);
+}
 function createElement(type, props, ...children) {
   return hook("createElement")(type, props, ...children);
+}
+var reactNamespace = {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+  forwardRef,
+  useImperativeHandle,
+  cloneElement,
+  isValidElement,
+  createContext,
+  useContext,
+  useId,
+  useLayoutEffect,
+  createElement
+};
+var defaultExport = new Proxy(reactNamespace, {
+  get(target, prop, receiver) {
+    if (prop in target) {
+      return Reflect.get(target, prop, receiver);
+    }
+    return requireHostReact()[prop];
+  }
+});
+
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/runtime/store.js
+function createExternalStore(initial) {
+  let state = initial;
+  const listeners = /* @__PURE__ */ new Set();
+  return {
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => state,
+    setState: (next) => {
+      state = next;
+      for (const listener of listeners) {
+        listener();
+      }
+    }
+  };
+}
+function defaultEquals(a2, b2) {
+  return JSON.stringify(a2) === JSON.stringify(b2);
+}
+function createStorageStore(options) {
+  const { storage, key, parse, equals = defaultEquals, keepCurrentWhenMissing = false } = options;
+  const external = createExternalStore(parse(void 0));
+  async function reloadFromStorage() {
+    const raw = await storage.get(key);
+    if (raw === void 0 && keepCurrentWhenMissing) {
+      return;
+    }
+    const next = parse(raw);
+    const current = external.getSnapshot();
+    if (!equals(current, next)) {
+      external.setState(next);
+    }
+  }
+  async function set(next) {
+    const current = external.getSnapshot();
+    if (equals(current, next)) {
+      return;
+    }
+    external.setState(next);
+    await storage.set(key, next);
+  }
+  function useValue() {
+    return useSyncExternalStore(external.subscribe, external.getSnapshot, external.getSnapshot);
+  }
+  return {
+    subscribe: external.subscribe,
+    getSnapshot: external.getSnapshot,
+    useValue,
+    reloadFromStorage,
+    set
+  };
+}
+function setIntervalDisposable(callback, intervalMs) {
+  const timer = setInterval(callback, intervalMs);
+  return {
+    dispose: () => {
+      clearInterval(timer);
+    }
+  };
+}
+function syncOnWindowFocus(stores, options) {
+  const list = Array.isArray(stores) ? stores : [stores];
+  const reload = () => {
+    for (const store of list) {
+      void store.reloadFromStorage();
+    }
+  };
+  window.addEventListener("focus", reload);
+  document.addEventListener("visibilitychange", reload);
+  reload();
+  const intervalDisposable = options?.intervalMs !== void 0 ? setIntervalDisposable(reload, options.intervalMs) : null;
+  return {
+    dispose: () => {
+      window.removeEventListener("focus", reload);
+      document.removeEventListener("visibilitychange", reload);
+      intervalDisposable?.dispose();
+    }
+  };
 }
 
 // src/state.ts
 var ECHO_STATUS_STORAGE_KEY = "echo-status";
-var SYNC_INTERVAL_MS = 500;
 var pluginContext = null;
-var status = { running: false };
-var errorMessage = null;
-var lastStatusJson = JSON.stringify(status);
-var listeners = /* @__PURE__ */ new Set();
-function notifyListeners() {
-  for (const listener of listeners) {
-    listener();
+var statusStore = null;
+var errorStore = createExternalStore(null);
+function parseEchoStatus(raw) {
+  if (!raw || typeof raw !== "object") {
+    return { running: false };
   }
+  const candidate = raw;
+  if (typeof candidate.running !== "boolean") {
+    return { running: false };
+  }
+  return {
+    running: candidate.running,
+    ...typeof candidate.port === "number" ? { port: candidate.port } : {}
+  };
 }
-function applyStatus(next) {
-  const nextJson = JSON.stringify(next);
-  if (nextJson === lastStatusJson) {
-    return;
+function requireStatusStore() {
+  if (!statusStore) {
+    throw new Error("Echo state is not initialized.");
   }
-  lastStatusJson = nextJson;
-  status = next;
-  notifyListeners();
+  return statusStore;
+}
+function requirePluginContext() {
+  if (!pluginContext) {
+    throw new Error("Echo state is not initialized.");
+  }
+  return pluginContext;
 }
 function initEchoState(hc) {
   pluginContext = hc;
-  void syncEchoStateFromStorage();
+  statusStore = createStorageStore({
+    storage: hc.storage,
+    key: ECHO_STATUS_STORAGE_KEY,
+    parse: parseEchoStatus,
+    keepCurrentWhenMissing: true
+  });
+  void statusStore.reloadFromStorage();
   void refreshEchoStatusFromMain();
 }
+function getEchoStatusStore() {
+  return requireStatusStore();
+}
+function disposeEchoState() {
+  pluginContext = null;
+  statusStore = null;
+  errorStore.setState(null);
+}
 function getEchoStatus() {
-  return status;
+  return statusStore?.getSnapshot() ?? { running: false };
 }
 function getEchoError() {
-  return errorMessage;
+  return errorStore.getSnapshot();
 }
 function subscribeEchoState(listener) {
-  listeners.add(listener);
+  const unsubscribeStatus = statusStore?.subscribe(listener) ?? (() => void 0);
+  const unsubscribeError = errorStore.subscribe(listener);
   return () => {
-    listeners.delete(listener);
+    unsubscribeStatus();
+    unsubscribeError();
   };
 }
-async function syncEchoStateFromStorage() {
-  if (!pluginContext) {
-    return;
-  }
-  const stored = await pluginContext.storage.get(ECHO_STATUS_STORAGE_KEY);
-  if (stored) {
-    applyStatus(stored);
-  }
-}
 async function refreshEchoStatusFromMain() {
-  if (!pluginContext) {
-    return;
-  }
+  const hc = requirePluginContext();
+  requireStatusStore();
   try {
-    const next = await pluginContext.ipc.invoke("status");
-    setEchoStatus(next);
+    const next = await hc.ipc.invoke("status");
+    await setEchoStatus(next);
   } catch {
   }
 }
-function startEchoStateSync() {
-  const interval = setInterval(() => {
-    void syncEchoStateFromStorage();
-  }, SYNC_INTERVAL_MS);
-  return () => {
-    clearInterval(interval);
-  };
-}
-function setEchoStatus(next) {
-  applyStatus(next);
-  void pluginContext?.storage.set(ECHO_STATUS_STORAGE_KEY, next);
+async function setEchoStatus(next) {
+  await requireStatusStore().set(next);
 }
 function setEchoError(message) {
-  errorMessage = message;
-  notifyListeners();
+  errorStore.setState(message);
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/runtime/jsx-runtime.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/runtime/jsx-runtime.js
 var Fragment = Symbol.for("@harborclient/sdk.Fragment");
 function build(type, props, key) {
   const react = requireHostReact();
@@ -171,31 +303,26 @@ var jsxs = build;
 
 // src/components/EchoFooterIndicator.tsx
 function EchoFooterIndicator() {
-  const [status2, setStatus] = useState(getEchoStatus());
+  const status = getEchoStatusStore().useValue();
   useEffect(() => {
-    void syncEchoStateFromStorage();
-    const unsubscribeLocal = subscribeEchoState(() => {
-      setStatus(getEchoStatus());
-    });
-    const stopSync = startEchoStateSync();
+    const syncDisposable = syncOnWindowFocus(getEchoStatusStore(), { intervalMs: 500 });
     return () => {
-      unsubscribeLocal();
-      stopSync();
+      syncDisposable.dispose();
     };
   }, []);
   return /* @__PURE__ */ jsxs("span", { className: "inline-flex items-center", role: "status", children: [
-    /* @__PURE__ */ jsx("span", { className: "sr-only", children: status2.running ? "Echo server active" : "Echo server stopped" }),
+    /* @__PURE__ */ jsx("span", { className: "sr-only", children: status.running ? "Echo server active" : "Echo server stopped" }),
     /* @__PURE__ */ jsx(
       "span",
       {
-        className: `inline-block h-2 w-2 rounded-full ${status2.running ? "bg-success" : "bg-muted"}`,
+        className: `inline-block h-2 w-2 rounded-full ${status.running ? "bg-success" : "bg-muted"}`,
         "aria-hidden": "true"
       }
     )
   ] });
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/clipboard.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/clipboard.js
 async function copyToClipboard(hc, text, options) {
   await navigator.clipboard.writeText(text);
   if (options?.toast) {
@@ -203,7 +330,7 @@ async function copyToClipboard(hc, text, options) {
   }
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/components/Button/index.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/components/Button/index.js
 var VARIANT_CLASSES = {
   primary: "inline-flex min-h-[34px] cursor-pointer items-center justify-center rounded-md border border-transparent bg-accent px-3 py-1 text-[15px] font-medium text-white shadow-sm hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 app-no-drag",
   secondary: "inline-flex min-h-[34px] cursor-pointer items-center justify-center rounded-md border border-separator bg-control px-3 py-1 text-[15px] text-text shadow-sm hover:bg-selection disabled:cursor-not-allowed disabled:opacity-50 app-no-drag",
@@ -218,7 +345,7 @@ function Button({ variant = "primary", className, type = "button", innerRef, ...
   return jsx("button", { ref: innerRef, type, className: classes, ...props });
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/components/FieldError/index.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/components/FieldError/index.js
 function spacingClasses(spacing) {
   switch (spacing) {
     case "section":
@@ -2168,11 +2295,11 @@ function ensureAddr(state, addr) {
   if (addr & 1)
     return 2;
   let idx = addr >> 1;
-  let status2 = state.status[idx];
-  if (status2 == 4)
+  let status = state.status[idx];
+  if (status == 4)
     throw new Error("Cyclic dependency between fields and/or facets");
-  if (status2 & 2)
-    return status2;
+  if (status & 2)
+    return status;
   state.status[idx] = 4;
   let changed = state.computeSlot(state, state.config.dynamicSlots[idx]);
   return state.status[idx] = 2 | changed;
@@ -23394,10 +23521,10 @@ function _objectWithoutPropertiesLoose(r3, e3) {
 }
 
 // node_modules/.pnpm/@uiw+react-codemirror@4.25.10_@babel+runtime@8.0.0_@codemirror+autocomplete@6.20.3_@cod_e67f98ff469220c0ad9bb15b36961e8d/node_modules/@uiw/react-codemirror/esm/index.js
-import React, { useRef as useRef2, forwardRef, useImperativeHandle, useCallback as useCallback2 } from "react";
+import React, { useRef as useRef2, forwardRef as forwardRef2, useImperativeHandle as useImperativeHandle2, useCallback as useCallback2 } from "react";
 
 // node_modules/.pnpm/@uiw+react-codemirror@4.25.10_@babel+runtime@8.0.0_@codemirror+autocomplete@6.20.3_@cod_e67f98ff469220c0ad9bb15b36961e8d/node_modules/@uiw/react-codemirror/esm/useCodeMirror.js
-import { useEffect as useEffect2, useLayoutEffect, useState as useState2 } from "react";
+import { useEffect as useEffect2, useLayoutEffect as useLayoutEffect2, useState as useState2 } from "react";
 
 // node_modules/.pnpm/@codemirror+commands@6.10.4/node_modules/@codemirror/commands/dist/index.js
 var toggleComment = (target) => {
@@ -26601,7 +26728,7 @@ function useCodeMirror(props) {
     getExtensions.push(EditorView.updateListener.of(onUpdate));
   }
   getExtensions = getExtensions.concat(extensions);
-  useLayoutEffect(() => {
+  useLayoutEffect2(() => {
     if (container && !state) {
       var config15 = {
         doc: value,
@@ -26692,7 +26819,7 @@ function useCodeMirror(props) {
 
 // node_modules/.pnpm/@uiw+react-codemirror@4.25.10_@babel+runtime@8.0.0_@codemirror+autocomplete@6.20.3_@cod_e67f98ff469220c0ad9bb15b36961e8d/node_modules/@uiw/react-codemirror/esm/index.js
 var _excluded = ["className", "value", "selection", "extensions", "onChange", "onStatistics", "onCreateEditor", "onUpdate", "autoFocus", "theme", "height", "minHeight", "maxHeight", "width", "minWidth", "maxWidth", "basicSetup", "placeholder", "indentWithTab", "editable", "readOnly", "root", "initialState"];
-var ReactCodeMirror = /* @__PURE__ */ forwardRef((props, ref) => {
+var ReactCodeMirror = /* @__PURE__ */ forwardRef2((props, ref) => {
   var className = props.className, _props$value = props.value, value = _props$value === void 0 ? "" : _props$value, selection2 = props.selection, _props$extensions = props.extensions, extensions = _props$extensions === void 0 ? [] : _props$extensions, onChange = props.onChange, onStatistics = props.onStatistics, onCreateEditor = props.onCreateEditor, onUpdate = props.onUpdate, autoFocus = props.autoFocus, _props$theme = props.theme, theme2 = _props$theme === void 0 ? "light" : _props$theme, height = props.height, minHeight = props.minHeight, maxHeight = props.maxHeight, width = props.width, minWidth = props.minWidth, maxWidth = props.maxWidth, basicSetup3 = props.basicSetup, placeholder2 = props.placeholder, indentWithTab2 = props.indentWithTab, editable2 = props.editable, readOnly2 = props.readOnly, root = props.root, initialState = props.initialState, other = _objectWithoutPropertiesLoose(props, _excluded);
   var editor = useRef2(null);
   var _useCodeMirror = useCodeMirror({
@@ -26719,7 +26846,7 @@ var ReactCodeMirror = /* @__PURE__ */ forwardRef((props, ref) => {
     extensions,
     initialState
   }), state = _useCodeMirror.state, view = _useCodeMirror.view, container = _useCodeMirror.container, setContainer = _useCodeMirror.setContainer;
-  useImperativeHandle(ref, () => ({
+  useImperativeHandle2(ref, () => ({
     editor: editor.current,
     state,
     view
@@ -28622,7 +28749,7 @@ var e2 = { airline: { airline: [{ name: `Aegean Airlines`, iataCode: `A3` }, { n
 // node_modules/.pnpm/@faker-js+faker@10.5.0/node_modules/@faker-js/faker/dist/locale/en.js
 var r2 = new yt({ locale: [e2, Ct] });
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/variables/dynamic.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/variables/dynamic.js
 function categoryImageUrl(category) {
   return r2.image.urlLoremFlickr({ category });
 }
@@ -29122,7 +29249,7 @@ function getDynamicVariableDescription(key) {
 }
 var DYNAMIC_VARIABLE_NAMES = Object.keys(DYNAMIC_VARIABLES).sort();
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/variables/tokens.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/variables/tokens.js
 var VARIABLE_NAME_CHARS = "\\w$.-";
 var VARIABLE_TOKEN_PATTERN = new RegExp(`\\{\\{\\s*([${VARIABLE_NAME_CHARS}]+)\\s*\\}\\}`, "g");
 function variableLookup(variables) {
@@ -29143,28 +29270,7 @@ function resolveVariable(key, variables) {
   return variableLookup(variables).get(key);
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/runtime/store.js
-function createExternalStore(initial) {
-  let state = initial;
-  const listeners2 = /* @__PURE__ */ new Set();
-  return {
-    subscribe: (listener) => {
-      listeners2.add(listener);
-      return () => {
-        listeners2.delete(listener);
-      };
-    },
-    getSnapshot: () => state,
-    setState: (next) => {
-      state = next;
-      for (const listener of listeners2) {
-        listener();
-      }
-    }
-  };
-}
-
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/ui/codeEditorSettings.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/ui/codeEditorSettings.js
 var DEFAULT_CODE_EDITOR_SETUP = {
   lineNumbers: true,
   foldGutter: true,
@@ -29172,7 +29278,7 @@ var DEFAULT_CODE_EDITOR_SETUP = {
   highlightActiveLineGutter: true
 };
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/components/CodeEditor/config.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/components/CodeEditor/config.js
 var DEFAULT_CODE_EDITOR_CONFIG = {
   theme: "default",
   setup: DEFAULT_CODE_EDITOR_SETUP
@@ -33203,7 +33309,7 @@ var xcodeDarkInit = (options) => {
 };
 var xcodeDark = xcodeDarkInit();
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/components/CodeEditor/themes.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/components/CodeEditor/themes.js
 var themeExtensions = {
   dracula,
   githubLight,
@@ -33220,7 +33326,7 @@ function getCodeEditorThemeExtension(value) {
   return themeExtensions[value];
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/components/CodeEditor/index.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/components/CodeEditor/index.js
 var lightHighlight = HighlightStyle.define([
   { tag: tags.propertyName, color: "#881391" },
   { tag: tags.string, color: "#c41a16" },
@@ -33583,7 +33689,7 @@ function CodeEditor({ value, onChange, language: language2 = "text", readOnly: r
   }, children: "Edit value" }) : null] }) : null] });
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/components/forms/classes.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/components/forms/classes.js
 var field = "rounded-md border border-separator bg-field px-2 py-1 text-[15px] text-text app-no-drag";
 var surfaceField = "w-full rounded-md border border-separator bg-field px-3 py-2 text-[14px] text-text";
 var VARIANT_CLASSES2 = {
@@ -33601,13 +33707,13 @@ function mergeFieldClasses(variant, className) {
   return void 0;
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/components/forms/Input.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/components/forms/Input.js
 function Input({ ref, variant = "control", type, className, ...props }) {
   const resolvedVariant = type === "checkbox" || type === "radio" ? "plain" : variant;
   return jsx("input", { ref, type, className: mergeFieldClasses(resolvedVariant, className), ...props });
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/components/enhanceControl.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/components/enhanceControl.js
 var REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
 var FORM_CONTROL_TAGS = /* @__PURE__ */ new Set(["button", "input", "select", "textarea"]);
 function getSingleChild(node) {
@@ -33669,7 +33775,7 @@ function enhanceControl(child, options) {
   return applyAriaProps(child, options);
 }
 
-// node_modules/.pnpm/@harborclient+sdk@0.6.15_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search_ba082a637edc564667da1417d93e49c1/node_modules/@harborclient/sdk/dist/components/FormGroup/index.js
+// node_modules/.pnpm/@harborclient+sdk@1.0.0_@babel+runtime@8.0.0_@codemirror+lint@6.9.7_@codemirror+search@_4a97bca4b8240b001fbe9e82dfd8384f/node_modules/@harborclient/sdk/dist/components/FormGroup/index.js
 function labelClasses(tone, srOnly, inline) {
   const base2 = "text-[14px]";
   const visibility = srOnly ? "sr-only" : "";
@@ -33728,7 +33834,7 @@ var ECHO_BASE_URL_VARIABLE = "{{echoBaseUrl}}";
 function EchoPanel({ hc }) {
   const [portInput, setPortInput] = useState("0");
   const [script, setScript] = useState(DEFAULT_SCRIPT);
-  const [status2, setStatus] = useState(getEchoStatus());
+  const [status, setStatus] = useState(getEchoStatus());
   const [error, setError] = useState(getEchoError());
   const [busy, setBusy] = useState(false);
   const refreshStatus = useCallback(async () => {
@@ -33792,7 +33898,7 @@ function EchoPanel({ hc }) {
       setBusy(false);
     }
   }, [hc]);
-  const baseUrl = status2.running && status2.port !== void 0 ? `http://localhost:${status2.port}` : null;
+  const baseUrl = status.running && status.port !== void 0 ? `http://localhost:${status.port}` : null;
   const editorVariables = useMemo(
     () => baseUrl ? [{ key: "echoBaseUrl", value: baseUrl, defaultValue: "", share: false }] : [],
     [baseUrl]
@@ -33811,11 +33917,11 @@ function EchoPanel({ hc }) {
       /* @__PURE__ */ jsx(
         "span",
         {
-          className: `inline-block h-2.5 w-2.5 rounded-full ${status2.running ? "bg-success" : "bg-muted"}`,
+          className: `inline-block h-2.5 w-2.5 rounded-full ${status.running ? "bg-success" : "bg-muted"}`,
           "aria-hidden": "true"
         }
       ),
-      /* @__PURE__ */ jsx("span", { className: "text-[14px] text-muted", role: "status", children: status2.running ? `Listening on port ${status2.port}` : "Stopped" })
+      /* @__PURE__ */ jsx("span", { className: "text-[14px] text-muted", role: "status", children: status.running ? `Listening on port ${status.port}` : "Stopped" })
     ] }) }),
     /* @__PURE__ */ jsx("div", { className: "min-h-0 flex-1 overflow-auto px-3 py-3", children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-4", children: [
       error && /* @__PURE__ */ jsx(FieldError, { roleAlert: true, spacing: "section", children: error }),
@@ -33852,7 +33958,7 @@ function EchoPanel({ hc }) {
               max: 65535,
               className: "max-w-[12rem]",
               value: portInput,
-              disabled: status2.running || busy,
+              disabled: status.running || busy,
               onChange: (event) => setPortInput(event.target.value)
             }
           )
@@ -33879,7 +33985,7 @@ function EchoPanel({ hc }) {
           )
         }
       ),
-      /* @__PURE__ */ jsx("div", { children: status2.running ? /* @__PURE__ */ jsxs("div", { className: "flex gap-2", children: [
+      /* @__PURE__ */ jsx("div", { children: status.running ? /* @__PURE__ */ jsxs("div", { className: "flex gap-2", children: [
         /* @__PURE__ */ jsx(Button, { variant: "secondary", disabled: busy, onClick: () => void handleStop(), children: "Stop" }),
         /* @__PURE__ */ jsx(
           Button,
@@ -33899,6 +34005,7 @@ function EchoPanel({ hc }) {
 function activate(hc) {
   installReact(hc.react);
   initEchoState(hc);
+  hc.subscriptions.push({ dispose: disposeEchoState });
   function EchoPanelHost() {
     return /* @__PURE__ */ jsx(EchoPanel, { hc });
   }
