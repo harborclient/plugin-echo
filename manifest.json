@@ -1,9 +1,14 @@
 {
   "id": "com.harborclient.echo",
   "name": "Echo Server",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "HarborClient",
   "description": "README.md",
+  "summary": "HarborClient plugin that runs a local httpbin-style HTTP echo server inside the app.",
+  "categories": ["requests", "scripting"],
+  "screenshots": [
+    "https://raw.githubusercontent.com/harborclient/plugin-echo/main/screenshot.png"
+  ],
   "engines": {
     "harborclient": ">=1.8.0"
   },
