@@ -2,6 +2,7 @@
   "name": "@harborclient/plugin-echo",
   "type": "module",
   "scripts": {
+    "release": "bash scripts/publish.sh",
     "build": "node scripts/build.mjs",
     "build:main": "esbuild src/main.ts --bundle --outfile=dist/main.js --format=esm --platform=neutral",
     "build:renderer": "node scripts/esbuild-renderer.mjs && node scripts/validate-renderer.mjs",
@@ -17,7 +18,7 @@
     "plugin:verify": "node --experimental-strip-types scripts/plugin-verify.ts"
   },
   "dependencies": {
-    "@harborclient/sdk": "^1.0.0"
+    "@harborclient/sdk": "^1.0.33"
   },
   "devDependencies": {
     "@types/node": "^26.0.1",
