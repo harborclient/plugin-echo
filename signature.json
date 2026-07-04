@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "pluginId": "com.harborclient.echo",
-  "pluginVersion": "1.0.4",
+  "pluginVersion": "1.0.5",
   "algorithm": "Ed25519",
   "files": [
     {
@@ -26,7 +26,7 @@
     },
     {
       "path": "dist/renderer.js",
-      "sha256": "3209338e8beb3c2d24e70a2992fe57c5f723eba7cf820dd672a8b93ff8d4d7f3"
+      "sha256": "46ac1b8807893c2a84081f9bc5acb6334fe3f7eb1fa887d7e1f4cac8b3cd384d"
     },
     {
       "path": "eslint.config.mjs",
@@ -34,15 +34,15 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "5d657a6e68caf881a8072dcd3ebd34c08ac1bcd7881d89864e8b35e5f31c47da"
+      "sha256": "a1de3981b40acc8a6bb405e6b9c27dd678a490094d3bc1fe6624f17b43db7249"
     },
     {
       "path": "package.json",
-      "sha256": "4d28021091ed070f529f77c34cde53fa468766bbeba347ed0ec76d6ea4889c75"
+      "sha256": "9572d2ee91d328cad72a6f959fb5be5b13ed8b370383b0088c9dbc203f93b4c1"
     },
     {
       "path": "pnpm-lock.yaml",
-      "sha256": "9ab3a93a07215cf8a41244c1e4c6e7abb518cdddcc87ce0f0ad34d0a222b15d2"
+      "sha256": "a8a3008e2539947ea8bd0a92fa36cc16940d1d7975d139b9b5734d9ed5193d2e"
     },
     {
       "path": "README.md",
@@ -50,7 +50,7 @@
     },
     {
       "path": "screenshot.png",
-      "sha256": "1c02655af53149af9f015069de029eb6a12f8d7e89a8eaf1c0520b764226515e"
+      "sha256": "06c1ba29ea624d4eb6ec0244e55596c20d3e6e761cd95fe4dfebc13eff79a101"
     },
     {
       "path": "scripts/build.mjs",
@@ -65,12 +65,16 @@
       "sha256": "3e53a3d5d692c5bfd8f063d69b2331743f8afeef3330b7e21a3b69d5daeb2ae8"
     },
     {
+      "path": "scripts/publish.sh",
+      "sha256": "272abe246e7b12684741a9eb3a26928ec7dd9a62ad4e26b95fa104c32d516412"
+    },
+    {
       "path": "scripts/render-screenshot.sh",
       "sha256": "d2fe525f530446f4f53add2abcfed2ec7f11253a7d128608781ccd18487fbb25"
     },
     {
       "path": "scripts/screenshot-marketing.html",
-      "sha256": "47522fea06789cad816bbfd3b7dcef86159ed2a18e033c4fd724a31dac024128"
+      "sha256": "d41565055474f5cace6764b32e5ad45e730bdd30112ee350a7bd50f16c071643"
     },
     {
       "path": "scripts/validate-renderer.mjs",
@@ -101,5 +105,6 @@
       "sha256": "663c22f2cb634722bc1c1191c4808b53c89d930979d4936cb6d0a539f4476ac9"
     }
   ],
-  "signature": "hGvrggMbe2S1do8HlRzahy0eCPhrxW4bpCri1Jg8Wbiyv9MzDQ6UaNP+ZJEO1iKw4OxpCizR03Z9nZdZnIFNCw=="
+  "keyId": "com.harborclient.echo",
+  "signature": "3I9XpLyBLw4RK1OzZ5I9As669PGZ9SG4uyK/SVqFoYXZCcuF/uhM/3OV8qRK3AZNcy/we3L/WQevPsQJqt0xAg=="
 }
