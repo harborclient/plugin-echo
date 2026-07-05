@@ -50,7 +50,7 @@
     },
     {
       "path": "screenshot.png",
-      "sha256": "06c1ba29ea624d4eb6ec0244e55596c20d3e6e761cd95fe4dfebc13eff79a101"
+      "sha256": "5483b4e6b5aa5fcc3c9aca5ee89e0b320c4ea290107bf8492cd48681d979be4d"
     },
     {
       "path": "scripts/build.mjs",
@@ -106,5 +106,5 @@
     }
   ],
   "keyId": "com.harborclient.echo",
-  "signature": "3I9XpLyBLw4RK1OzZ5I9As669PGZ9SG4uyK/SVqFoYXZCcuF/uhM/3OV8qRK3AZNcy/we3L/WQevPsQJqt0xAg=="
+  "signature": "kAhocGzmT+lu3D76X9JGANLYAvmTUZAvV7Pehf+lMzC9zbL5DvQ3sRKEDiYV9wNw8Myiwx/bQbCSkgCA6QibDw=="
 }
