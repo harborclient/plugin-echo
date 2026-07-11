@@ -1,4 +1,3 @@
-import { installReact } from '@harborclient/sdk';
 import type { PluginContext } from '@harborclient/sdk';
 import { EchoFooterIndicator } from './components/EchoFooterIndicator';
 import { EchoPanel } from './components/EchoPanel';
@@ -10,7 +9,6 @@ import { initEchoState, disposeEchoState } from './state';
  * @param hc - Renderer plugin context from the HarborClient host.
  */
 export function activate(hc: PluginContext): void {
-  installReact(hc.react);
   initEchoState(hc);
 
   hc.subscriptions.push({ dispose: disposeEchoState });
