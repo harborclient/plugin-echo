@@ -8,12 +8,6 @@ function readGlobalHostReact() {
   const candidate = globalThis[HOST_REACT_GLOBAL_KEY];
   return candidate ?? null;
 }
-function setHostReact(react) {
-  hostReact = react;
-  if (typeof globalThis !== "undefined") {
-    globalThis[HOST_REACT_GLOBAL_KEY] = react;
-  }
-}
 function requireHostReact() {
   if (hostReact == null) {
     const globalReact = readGlobalHostReact();
@@ -27,11 +21,6 @@ function requireHostReact() {
     );
   }
   return hostReact;
-}
-
-// node_modules/.pnpm/@harborclient+sdk@1.0.33_@babel+runtime@8.0.0_@codemirror+search@6.7.1_@codemirror+them_f39ff3884637cfd15f954ae52c8cfc3e/node_modules/@harborclient/sdk/dist/runtime/index.js
-function installReact(react) {
-  setHostReact(react);
 }
 
 // node_modules/.pnpm/@harborclient+sdk@1.0.33_@babel+runtime@8.0.0_@codemirror+search@6.7.1_@codemirror+them_f39ff3884637cfd15f954ae52c8cfc3e/node_modules/@harborclient/sdk/dist/runtime/react.js
@@ -37897,7 +37886,6 @@ function EchoPanel({ hc }) {
 
 // src/renderer.tsx
 function activate(hc) {
-  installReact(hc.react);
   initEchoState(hc);
   hc.subscriptions.push({ dispose: disposeEchoState });
   function EchoPanelHost() {
