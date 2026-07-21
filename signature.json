@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "pluginId": "com.harborclient.echo",
-  "pluginVersion": "1.0.7",
+  "pluginVersion": "1.0.8",
   "algorithm": "Ed25519",
   "files": [
     {
@@ -26,7 +26,7 @@
     },
     {
       "path": "dist/renderer.js",
-      "sha256": "5eebd8dd9991b651e5c73d5023deb7afb52f2c56dbbe969abe16cdecd4f1015a"
+      "sha256": "189d7b05bfebddded6948917192c55c2795dfe2a49739253f2454fa56139d6d3"
     },
     {
       "path": "eslint.config.mjs",
@@ -34,15 +34,15 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "701470394951154cd22aa3ec5c9a6c62787eda894381fdf4eac6bffb6aacaa23"
+      "sha256": "d13ae0a79e14b762a5bbf6147da81438958061a04b1aab5a2d2b9c14b0a4bc6e"
     },
     {
       "path": "package.json",
-      "sha256": "7a263090145c1c747542bccb23e81e5d0063fd642067a7e315ef2229d0b02437"
+      "sha256": "4d083cc0493fed2175ffa42ef1e19b57649a28251606a43f5a1ab8d240bbfdbd"
     },
     {
       "path": "pnpm-lock.yaml",
-      "sha256": "a8a3008e2539947ea8bd0a92fa36cc16940d1d7975d139b9b5734d9ed5193d2e"
+      "sha256": "2b8367156cb79b01bd627fb9e8ba9b11ac104a029ec277b4948a946e163533d6"
     },
     {
       "path": "README.md",
@@ -73,20 +73,16 @@
       "sha256": "79507545fbccc06fd03ae317fcc5ce028e91f34ffe01834c22c709b4f30d341c"
     },
     {
-      "path": "src/components/EchoFooterIndicator.tsx",
-      "sha256": "1288ab03fb9695d44b4a4acb1261c0ea2dd5bef8289fa90d9639e6b4e2306bda"
-    },
-    {
       "path": "src/components/EchoPanel.tsx",
       "sha256": "35c072320f92fe3af4b0de9d4796eb293a209b8170d49666eda67bd28772f152"
     },
     {
       "path": "src/main.ts",
-      "sha256": "bac9dacd0f179a6dc28976de568d40544c0f7c1a681e8dd81b931b0f3ca6de3e"
+      "sha256": "7a20bdc2b6b1ca1456aaf2f9849e163373caa25a890446cfe8f010e5b71d6d51"
     },
     {
       "path": "src/renderer.tsx",
-      "sha256": "1331c6bf36ec5ded673c446bc6a459cc8496f05adff812558b01a873e31200c2"
+      "sha256": "bf8a51baee443583232a0093b0679e4036b3aa9d85d10a7ffcdc68d0c1cbc556"
     },
     {
       "path": "src/state.ts",
@@ -98,5 +94,5 @@
     }
   ],
   "keyId": "com.harborclient.echo",
-  "signature": "3S9BfTRgUlS4wvISgVzJkwTiSIUKJ/n+ULWFxH2IXNrz1wqe7m1z4nB1cdHhXvsTH/2T0ZB/V1t3EoNZKfseAw=="
+  "signature": "rAz6pUSPePM0cBXjI2N1NjLeHVvI02YwHGQs5ii86DxJXj3SvkkPtTok7TYAtgvYljXvtpazfepeBdC7OEjICg=="
 }
