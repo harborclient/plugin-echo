@@ -5,6 +5,9 @@ import { disposeEchoState, getEchoStatusStore, initEchoState } from './state';
 /** Manifest footerPanels id for the Echo server slide-up panel. */
 const ECHO_PANEL_ID = 'echo.panel';
 
+/** Unsubscribe for the footer status-dot store subscription. */
+let unsubscribeIndicator: (() => void) | undefined;
+
 /**
  * Pushes the native footer status-dot state for the current echo server status.
  *
@@ -26,8 +29,6 @@ function pushFooterIndicator(hc: PluginContext): void {
 export function activate(hc: PluginContext): void {
   initEchoState(hc);
 
-  hc.subscriptions.push({ dispose: disposeEchoState });
-
   /**
    * Footer panel host that closes over the plugin context.
    */
@@ -35,22 +36,26 @@ export function activate(hc: PluginContext): void {
     return <EchoPanel hc={hc} />;
   }
 
-  hc.subscriptions.push(
-    hc.ui.registerFooterPanel({
-      id: ECHO_PANEL_ID,
-      title: 'Echo server',
-      Component: EchoPanelHost
-    })
-  );
+  hc.ui.registerFooterPanel({
+    id: ECHO_PANEL_ID,
+    title: 'Echo server',
+    Component: EchoPanelHost
+  });
 
   pushFooterIndicator(hc);
-  const unsubscribeIndicator = getEchoStatusStore().subscribe(() => {
+  unsubscribeIndicator = getEchoStatusStore().subscribe(() => {
     pushFooterIndicator(hc);
   });
-  hc.subscriptions.push({ dispose: unsubscribeIndicator });
-  hc.subscriptions.push({
-    dispose: () => {
-      hc.ui.setFooterPanelIndicator(ECHO_PANEL_ID, null);
-    }
-  });
+}
+
+/**
+ * Tears down renderer-side echo server state and footer indicator on deactivation.
+ *
+ * @param hc - Renderer plugin context from the HarborClient host.
+ */
+export function deactivate(hc: PluginContext): void {
+  unsubscribeIndicator?.();
+  unsubscribeIndicator = undefined;
+  hc.ui.setFooterPanelIndicator(ECHO_PANEL_ID, null);
+  disposeEchoState();
 }
